@@ -1,52 +1,33 @@
 using UnityEngine;
-using Ilumisoft.HealthSystem;
 
 public class AOEDamage : MonoBehaviour
 {
-    private ProjectileConfig config;
+    private float damage;
     private float radius;
+    private float lifeTime = 0.5f;
 
-    public void Init(ProjectileConfig projectileConfig, float damageRadius)
+    public void Init(ProjectileConfig config, float aoeRadius)
     {
-        config = projectileConfig;
-        radius = damageRadius;
-        Destroy(gameObject, config.lifetime);
+        if (config != null) damage = config.damage;
+        radius = aoeRadius;
+        Invoke(nameof(DoAOE), 0.01f);
+        Invoke(nameof(SelfDestroy), config != null ? config.lifeTime : lifeTime);
     }
 
-    void Start()
+    private void DoAOE()
     {
-        // Запускаємо вибух одразу або через деякий час
-        Explode();
-    }
-
-    void Explode()
-    {
-        // Знаходимо всіх ворогів у радіусі
         Collider[] hits = Physics.OverlapSphere(transform.position, radius);
-        
-        foreach (Collider hit in hits)
+        foreach (var h in hits)
         {
-            if (hit.CompareTag("Enemy"))
+            if (h.TryGetComponent<IDamageable>(out var d))
             {
-                HealthComponent health = hit.GetComponent<HealthComponent>();
-                if (health != null)
-                {
-                    health.ApplyDamage(config.damage);
-                }
+                d.TakeDamage(damage);
             }
         }
-
-        // Створюємо ефект вибуху
-        if (config.hitEffect != null)
-            Instantiate(config.hitEffect, transform.position, Quaternion.identity);
-
-        Destroy(gameObject);
     }
 
-    // Візуалізація радіусу у редакторі
-    void OnDrawGizmosSelected()
+    private void SelfDestroy()
     {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, radius);
+        Destroy(gameObject);
     }
 }

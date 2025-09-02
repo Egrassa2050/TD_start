@@ -4,12 +4,12 @@ using UnityEngine.SceneManagement;
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
-    
+
     [Header("Налаштування сцен")]
     public string winSceneName = "WinScene";
     public string loseSceneName = "LoseScene";
     public string nextLevelSceneName = "NextLevel";
-    
+
     private bool gameEnded = false;
 
     private void Awake()
@@ -29,7 +29,7 @@ public class GameManager : MonoBehaviour
     {
         if (gameEnded) return;
         gameEnded = true;
-        
+
         Debug.Log("Гра програна! Завантаження сцени програшу.");
         LoadScene(loseSceneName);
     }
@@ -38,7 +38,7 @@ public class GameManager : MonoBehaviour
     {
         if (gameEnded) return;
         gameEnded = true;
-        
+
         Debug.Log("Гра виграна! Завантаження сцени перемоги.");
         LoadScene(winSceneName);
     }
@@ -46,21 +46,19 @@ public class GameManager : MonoBehaviour
     public void LoadNextLevel()
     {
         if (gameEnded) return;
-        
+
         Debug.Log("Завантаження наступного рівня.");
         LoadScene(nextLevelSceneName);
     }
 
     private void LoadScene(string sceneName)
     {
-        // Знищуємо Wallet.Instance перед завантаженням нової сцени
         if (Wallet.Instance != null)
         {
             Destroy(Wallet.Instance.gameObject);
-            Wallet.Instance = null;
+            // не робимо Wallet.Instance = null тут, OnDestroy() в Wallet обнулить Instance
         }
-        
-        // Завантажуємо сцену
+
         SceneManager.LoadScene(sceneName);
     }
 }

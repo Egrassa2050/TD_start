@@ -12,8 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2be392bb2de13b630884085a1a905d3f, type: 3}
   m_Name: ProjectileConfig_turret
   m_EditorClassIdentifier: 
+  type: 0
   damage: 3
   speed: 10
-  lifetime: 4
-  targetTag: Enemy
-  hitEffect: {fileID: 0}
+  lifeTime: 5
+  maxPierce: 1
+  useHoming: 0
+  homingTurnSpeed: 720
+  directionBased: 0
+  isAOE: 0
+  aoeRadius: 3
+  aoeOnImpact: 1

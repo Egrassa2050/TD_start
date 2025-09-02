@@ -1,65 +1,63 @@
-// TowerSlot.cs - з доданою перевіркою грошей
 using UnityEngine;
+using UnityEngine.EventSystems;
 
-public class TowerSlot : MonoBehaviour
+[RequireComponent(typeof(Collider))]
+public class TowerSlot : MonoBehaviour, IPointerClickHandler
 {
+    [SerializeField] private Transform towerSpawnPoint;
     private GameObject currentTower;
-    public GameObject buildMenuUI;
-    public Transform towerSpawnPoint;
 
-    void OnMouseDown()
+    public bool HasTower => currentTower != null;
+
+    public void OnPointerClick(PointerEventData eventData)
     {
-        if (currentTower != null)
-        {
-            Debug.Log("На цьому слоті вже є башня!");
-            return;
-        }
+        if (HasTower) return;
 
-        // Перевіряємо, чи вистачає грошей на будь-яку вежу
         if (!CanAffordAnyTower())
         {
             Debug.Log("Недостатньо грошей для будівництва будь-якої вежі!");
             return;
         }
 
-        if (buildMenuUI != null)
-        {
-            buildMenuUI.SetActive(true);
-            BuildMenu.Instance.OpenMenu(this);
-        }
+        if (BuildMenu.Instance != null) BuildMenu.Instance.OpenMenu(this);
     }
 
     private bool CanAffordAnyTower()
     {
-        foreach (GameObject towerPrefab in BuildManager.Instance.towerPrefabs)
+        var prefabs = BuildManager.Instance.TowerPrefabs;
+        for (int i = 0; i < prefabs.Count; i++)
         {
-            Tower towerComponent = towerPrefab.GetComponent<Tower>();
-            if (towerComponent != null && Wallet.Instance.money >= towerComponent.cost)
-            {
-                return true;
-            }
+            var prefab = prefabs[i];
+            if (prefab == null) continue;
+            var t = prefab.GetComponent<Tower>();
+            if (t != null && Wallet.Instance.Money >= t.Cost) return true;
         }
         return false;
     }
 
     public void BuildTower(int towerIndex)
     {
-        GameObject towerPrefab = BuildManager.Instance.GetTowerPrefab(towerIndex);
-        if (towerPrefab == null) return;
+        var prefab = BuildManager.Instance.GetTowerPrefab(towerIndex);
+        if (prefab == null) return;
 
-        Tower towerComponent = towerPrefab.GetComponent<Tower>();
-        if (towerComponent == null) return;
+        var towerComp = prefab.GetComponent<Tower>();
+        if (towerComp == null) return;
 
-        int cost = towerComponent.cost;
-
-        if (Wallet.Instance.SpendMoney(cost))
-        {
-            currentTower = Instantiate(towerPrefab, towerSpawnPoint.position, Quaternion.identity);
-            BuildMenu.Instance.CloseMenu();
-        }
-        else
+        if (!Wallet.Instance.SpendMoney(towerComp.Cost))
         {
             Debug.Log("Недостатньо грошей для будівництва!");
+            return;
         }
+
+        currentTower = Instantiate(prefab, towerSpawnPoint.position, Quaternion.identity);
+        BuildMenu.Instance.CloseMenu();
+    }
+
+    public void SellTower()
+    {
+        if (!HasTower) return;
+        var t = currentTower.GetComponent<Tower>();
+        if (t != null) Wallet.Instance.AddMoney(t.Cost / 2);
+        Destroy(currentTower);
     }
 }

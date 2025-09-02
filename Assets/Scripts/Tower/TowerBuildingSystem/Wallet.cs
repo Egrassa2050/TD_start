@@ -1,47 +1,34 @@
 using UnityEngine;
-using TMPro;
 
 public class Wallet : MonoBehaviour
 {
-    public static Wallet Instance;
-    public int money = 10000;
-    public Transform moneyTextTransform;
-    private TMP_Text moneyText;
+    public static Wallet Instance { get; private set; }
+
+    [SerializeField, Tooltip("Поточні гроші")]
+    private int money = 100;
+
+    public int Money => money;
 
     void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
-            Destroy(gameObject);
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+    }
 
-        if (moneyTextTransform != null)
-            moneyText = moneyTextTransform.GetComponent<TMP_Text>();
-
-        UpdateMoneyText();
-        // Видалено DontDestroyOnLoad - тепер об'єкт не зберігається між сценами
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     public bool SpendMoney(int amount)
     {
-        if (money >= amount)
-        {
-            money -= amount;
-            UpdateMoneyText();
-            return true;
-        }
+        if (amount <= 0) return true;
+        if (money >= amount) { money -= amount; return true; }
         return false;
     }
 
     public void AddMoney(int amount)
     {
         money += amount;
-        UpdateMoneyText();
-    }
-
-    private void UpdateMoneyText()
-    {
-        if (moneyText != null)
-            moneyText.text = money.ToString();
     }
 }

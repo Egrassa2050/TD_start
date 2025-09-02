@@ -1,69 +1,136 @@
 using UnityEngine;
-using Ilumisoft.HealthSystem;
 
+[RequireComponent(typeof(Collider))]
 public class Projectile : MonoBehaviour
 {
+    private float damage;
     private Transform target;
-    private ProjectileConfig config;
-    private Rigidbody rb;
+    private Vector3 direction;
+    private bool directionBased;
+    private float speed = 12f;
+    private float lifeTime = 5f;
 
-    public void Init(Transform targetTransform, ProjectileConfig projectileConfig)
+    // runtime state
+    private int remainingPierce = 0;
+    private bool useHoming = false;
+    private float homingTurnSpeed = 720f;
+    private bool isAOE = false;
+    private float aoeRadius = 3f;
+    private bool aoeOnImpact = true;
+
+    public void Init(Transform targetTransform, float dmg, bool dirBased = false, Vector3 dir = default)
     {
+        ApplyBaseSettings(dmg, 12f, 5f, dirBased, dir);
         target = targetTransform;
-        config = projectileConfig;
-        
-        if (rb == null)
-            rb = GetComponent<Rigidbody>();
-            
-        Destroy(gameObject, config.lifetime);
     }
 
-    void Awake()
+    public void Init(Transform targetTransform, ProjectileConfig config, Vector3 dir = default)
     {
-        rb = GetComponent<Rigidbody>();
-        if (rb == null)
+        if (config == null) { Init(targetTransform, 0f); return; }
+
+        damage = config.damage;
+        speed = config.speed;
+        lifeTime = config.lifeTime;
+        directionBased = config.directionBased;
+        direction = dir.normalized;
+
+        remainingPierce = config.type == ProjectileConfig.ProjectileType.Piercing ? Mathf.Max(1, config.maxPierce) : 1;
+        useHoming = config.useHoming && config.type == ProjectileConfig.ProjectileType.Homing;
+        homingTurnSpeed = config.homingTurnSpeed;
+        isAOE = config.isAOE || config.type == ProjectileConfig.ProjectileType.AOE;
+        aoeRadius = config.aoeRadius;
+        aoeOnImpact = config.aoeOnImpact;
+
+        target = targetTransform;
+
+        CancelInvoke();
+        Invoke(nameof(ReturnToPool), lifeTime);
+
+        if (isAOE && !aoeOnImpact)
         {
-            rb = gameObject.AddComponent<Rigidbody>();
-            rb.useGravity = false;
-            rb.isKinematic = false;
-            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            DoAOE();
+            ReturnToPool();
         }
+    }
+
+    private void ApplyBaseSettings(float dmg, float spd, float life, bool dirBased, Vector3 dir)
+    {
+        damage = dmg;
+        speed = spd;
+        lifeTime = life;
+        directionBased = dirBased;
+        direction = dir.normalized;
+        remainingPierce = 1;
+        useHoming = false;
+        isAOE = false;
+        aoeRadius = 0f;
+        aoeOnImpact = true;
+        CancelInvoke();
+        Invoke(nameof(ReturnToPool), lifeTime);
     }
 
     void Update()
     {
-        if (target == null)
+        if (directionBased)
         {
-            Destroy(gameObject);
+            transform.position += direction * speed * Time.deltaTime;
             return;
         }
 
-        Vector3 direction = (target.position - transform.position).normalized;
-        transform.Translate(config.speed * Time.deltaTime * direction, Space.World);
-        transform.LookAt(target);
+        if (useHoming)
+        {
+            if (target == null) { ReturnToPool(); return; }
+            Vector3 toTarget = (target.position - transform.position).normalized;
+            float maxRadiansDelta = homingTurnSpeed * Mathf.Deg2Rad * Time.deltaTime;
+            Vector3 newDir = Vector3.RotateTowards(transform.forward, toTarget, maxRadiansDelta, 0f);
+            transform.rotation = Quaternion.LookRotation(newDir);
+            transform.position += transform.forward * speed * Time.deltaTime;
+            return;
+        }
+
+        if (target == null) { ReturnToPool(); return; }
+        Vector3 dir = (target.position - transform.position).normalized;
+        transform.position += dir * speed * Time.deltaTime;
+        transform.forward = dir;
     }
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Enemy"))
+        if (other.transform == transform) return;
+
+        if (isAOE && aoeOnImpact)
         {
-            HitTarget(other.gameObject);
+            DoAOE();
+            ReturnToPool();
+            return;
+        }
+
+        if (other.TryGetComponent<IDamageable>(out var dmgable))
+        {
+            dmgable.TakeDamage(damage);
+            remainingPierce--;
+            if (remainingPierce <= 0) ReturnToPool();
+        }
+        else
+        {
+            // якщо влучили в щось не живе — просто знищити (або можна пропускати)
+            ReturnToPool();
         }
     }
 
-    private void HitTarget(GameObject targetObject)
+    private void DoAOE()
     {
-        // Шукаємо HealthComponent в дітях цільового об'єкта
-        HealthComponent health = targetObject.GetComponentInChildren<HealthComponent>();
-        
-        if (health != null)
+        Collider[] hits = Physics.OverlapSphere(transform.position, aoeRadius);
+        foreach (var h in hits)
         {
-            health.ApplyDamage(config.damage);
+            if (h.TryGetComponent<IDamageable>(out var d)) d.TakeDamage(damage);
         }
+    }
 
-        if (config.hitEffect != null)
-            Instantiate(config.hitEffect, transform.position, Quaternion.identity);
-
-        Destroy(gameObject);
+    protected virtual void ReturnToPool()
+    {
+        CancelInvoke();
+        if (ProjectilePool.Instance != null) ProjectilePool.Instance.Despawn(this);
+        else Destroy(gameObject);
     }
 }
