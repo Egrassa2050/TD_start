@@ -5,23 +5,19 @@ public enum FireMode
 {
     Single,   // по одному ворогу
     Multi,    // кілька ворогів
-    AOE       // зона ураження
 }
 
 public class Turret : MonoBehaviour
 {
-    [Header("Основні параметри")]
-    public FireMode fireMode = FireMode.Single;
+    [Header("Основні параметри")] public FireMode fireMode = FireMode.Single;
     public Transform firePoint;
     public float fireRate = 1f;
     public float range = 10f;
 
-    [Header("Снаряди")]
-    public GameObject projectilePrefab;
+    [Header("Снаряди")] public GameObject projectilePrefab;
     public ProjectileConfig projectileConfig;
 
-    [Header("Параметри режимів")]
-    public int multiTargetsCount = 3;
+    [Header("Параметри режимів")] public int multiTargetsCount = 3;
     public float aoeRadius = 3f;
 
     private float fireCooldown;
@@ -62,7 +58,7 @@ public class Turret : MonoBehaviour
 
         targets.Sort((a, b) =>
             Vector3.Distance(transform.position, a.transform.position)
-            .CompareTo(Vector3.Distance(transform.position, b.transform.position)));
+                .CompareTo(Vector3.Distance(transform.position, b.transform.position)));
     }
 
     void RotateTowards(Vector3 position)
@@ -88,33 +84,17 @@ public class Turret : MonoBehaviour
                     SpawnProjectile(targets[i]);
                 break;
 
-            case FireMode.AOE:
-                if (projectilePrefab && firePoint)
+
+
+                void SpawnProjectile(GameObject target)
                 {
-                    GameObject proj = Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
-                    AOEDamage aoeDamage = proj.GetComponent<AOEDamage>();
-                    if (aoeDamage != null)
-                    {
-                        aoeDamage.Init(projectileConfig, aoeRadius);
-                    }
-                    else
-                    {
-                        // Якщо компонент AOEDamage відсутній, створюємо його
-                        aoeDamage = proj.AddComponent<AOEDamage>();
-                        aoeDamage.Init(projectileConfig, aoeRadius);
-                    }
+                    if (!projectilePrefab || !firePoint || !projectileConfig) return;
+
+                    GameObject projGO = Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
+                    Projectile proj = projGO.GetComponent<Projectile>();
+                    if (proj != null)
+                        proj.Init(target.transform, projectileConfig);
                 }
-                break;
         }
-    }
-
-    void SpawnProjectile(GameObject target)
-    {
-        if (!projectilePrefab || !firePoint || !projectileConfig) return;
-
-        GameObject projGO = Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
-        Projectile proj = projGO.GetComponent<Projectile>();
-        if (proj != null)
-            proj.Init(target.transform, projectileConfig);
     }
 }

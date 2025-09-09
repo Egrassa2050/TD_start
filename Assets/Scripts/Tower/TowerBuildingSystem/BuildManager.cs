@@ -3,22 +3,23 @@ using UnityEngine;
 
 public class BuildManager : MonoBehaviour
 {
-    public static BuildManager Instance { get; private set; }
+    public static BuildManager Instance;
 
     [Header("Список веж")]
-    [SerializeField] private List<GameObject> towerPrefabs = new List<GameObject>();
+    public List<GameObject> towerPrefabs;
 
     void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
     }
 
     public GameObject GetTowerPrefab(int index)
     {
-        if (index >= 0 && index < towerPrefabs.Count) return towerPrefabs[index];
+        if (index >= 0 && index < towerPrefabs.Count)
+            return towerPrefabs[index];
         return null;
     }
-
-    public IReadOnlyList<GameObject> TowerPrefabs => towerPrefabs; // <- саме так називай
 }

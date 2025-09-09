@@ -1,63 +1,68 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
 
-[RequireComponent(typeof(Collider))]
-public class TowerSlot : MonoBehaviour, IPointerClickHandler
+public class TowerSlot : MonoBehaviour
 {
-    [SerializeField] private Transform towerSpawnPoint;
     private GameObject currentTower;
 
-    public bool HasTower => currentTower != null;
+    [Header("Налаштування слота")]
+    public GameObject buildMenuUI;
+    public Transform towerSpawnPoint;
 
-    public void OnPointerClick(PointerEventData eventData)
+    void OnMouseDown()
     {
-        if (HasTower) return;
-
-        if (!CanAffordAnyTower())
+        // Перевіряємо, чи не клікнули через UI
+        if (UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+            return;
+            
+        if (currentTower != null)
         {
-            Debug.Log("Недостатньо грошей для будівництва будь-якої вежі!");
+            Debug.Log($"[TowerSlot] На слоті {name} вже є вежа!");
             return;
         }
 
-        if (BuildMenu.Instance != null) BuildMenu.Instance.OpenMenu(this);
-    }
-
-    private bool CanAffordAnyTower()
-    {
-        var prefabs = BuildManager.Instance.TowerPrefabs;
-        for (int i = 0; i < prefabs.Count; i++)
+        if (buildMenuUI == null)
         {
-            var prefab = prefabs[i];
-            if (prefab == null) continue;
-            var t = prefab.GetComponent<Tower>();
-            if (t != null && Wallet.Instance.Money >= t.Cost) return true;
+            Debug.LogWarning($"[TowerSlot] buildMenuUI не підключена у {name}!");
+            return;
         }
-        return false;
+
+        // Вмикаємо UI і передаємо слот у скрипт BuildMenu
+        BuildMenu menu = buildMenuUI.GetComponent<BuildMenu>();
+        if (menu != null)
+        {
+            menu.OpenMenu(this);
+            Debug.Log($"[TowerSlot] Відкрито панель {buildMenuUI.name} для слоту {name}");
+        }
+        else
+        {
+            Debug.LogWarning($"[TowerSlot] На {buildMenuUI.name} немає компоненту BuildMenu!");
+        }
     }
 
     public void BuildTower(int towerIndex)
     {
-        var prefab = BuildManager.Instance.GetTowerPrefab(towerIndex);
-        if (prefab == null) return;
-
-        var towerComp = prefab.GetComponent<Tower>();
-        if (towerComp == null) return;
-
-        if (!Wallet.Instance.SpendMoney(towerComp.Cost))
+        if (currentTower != null)
         {
-            Debug.Log("Недостатньо грошей для будівництва!");
+            Debug.Log($"[TowerSlot] На слоті {name} вже стоїть вежа!");
             return;
         }
 
-        currentTower = Instantiate(prefab, towerSpawnPoint.position, Quaternion.identity);
-        BuildMenu.Instance.CloseMenu();
+        var prefab = BuildManager.Instance.GetTowerPrefab(towerIndex);
+        if (prefab == null)
+        {
+            Debug.LogWarning($"[TowerSlot] Немає префабу для індексу {towerIndex}");
+            return;
+        }
+
+        currentTower = Instantiate(prefab, towerSpawnPoint.position, towerSpawnPoint.rotation);
+        Debug.Log($"[TowerSlot] Побудовано {prefab.name} у слоті {name}");
+
+        // Меню закривається через виклик CloseMenu в BuildMenu
     }
 
-    public void SellTower()
+    public void ClearTower()
     {
-        if (!HasTower) return;
-        var t = currentTower.GetComponent<Tower>();
-        if (t != null) Wallet.Instance.AddMoney(t.Cost / 2);
-        Destroy(currentTower);
+        currentTower = null;
+        Debug.Log($"[TowerSlot] Слот {name} очищено");
     }
 }

@@ -23,7 +23,11 @@ public class Wallet : MonoBehaviour
     public bool SpendMoney(int amount)
     {
         if (amount <= 0) return true;
-        if (money >= amount) { money -= amount; return true; }
+        if (money >= amount)
+        {
+            money -= amount;
+            return true;
+        }
         return false;
     }
 
