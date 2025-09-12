@@ -48,7 +48,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43777d7541cb18c299ea987147bb6581, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cost: 30
+  cost: 500
   range: 8
   fireRate: 1
 --- !u!114 &5273819493073276994

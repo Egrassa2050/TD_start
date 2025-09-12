@@ -10,7 +10,6 @@ public class TowerSlot : MonoBehaviour
 
     void OnMouseDown()
     {
-        // Перевіряємо, чи не клікнули через UI
         if (UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
             return;
             
@@ -26,7 +25,6 @@ public class TowerSlot : MonoBehaviour
             return;
         }
 
-        // Вмикаємо UI і передаємо слот у скрипт BuildMenu
         BuildMenu menu = buildMenuUI.GetComponent<BuildMenu>();
         if (menu != null)
         {
@@ -39,25 +37,48 @@ public class TowerSlot : MonoBehaviour
         }
     }
 
-    public void BuildTower(int towerIndex)
+    public bool BuildTower(int towerIndex)
     {
         if (currentTower != null)
         {
             Debug.Log($"[TowerSlot] На слоті {name} вже стоїть вежа!");
-            return;
+            return false;
         }
 
         var prefab = BuildManager.Instance.GetTowerPrefab(towerIndex);
         if (prefab == null)
         {
             Debug.LogWarning($"[TowerSlot] Немає префабу для індексу {towerIndex}");
-            return;
+            return false;
         }
 
-        currentTower = Instantiate(prefab, towerSpawnPoint.position, towerSpawnPoint.rotation);
-        Debug.Log($"[TowerSlot] Побудовано {prefab.name} у слоті {name}");
+        // Забираємо вартість із компонента Tower на префабі
+        Tower towerData = prefab.GetComponent<Tower>();
+        if (towerData == null)
+        {
+            Debug.LogWarning($"[TowerSlot] Префаб {prefab.name} не містить компонент Tower!");
+            return false;
+        }
 
-        // Меню закривається через виклик CloseMenu в BuildMenu
+        int cost = towerData.Cost;
+
+        if (Wallet.Instance == null)
+        {
+            Debug.LogWarning("[TowerSlot] Wallet.Instance == null");
+            return false;
+        }
+
+        // Списуємо гроші перед створенням — якщо не вистачає, не будуємо
+        if (!Wallet.Instance.SpendMoney(cost))
+        {
+            Debug.Log($"[TowerSlot] Недостатньо грошей для побудови ({cost})");
+            return false;
+        }
+
+        // Інстанціюємо вежу після успішного списання
+        currentTower = Instantiate(prefab, towerSpawnPoint.position, towerSpawnPoint.rotation);
+        Debug.Log($"[TowerSlot] Побудовано {prefab.name} у слоті {name} за {cost}");
+        return true;
     }
 
     public void ClearTower()

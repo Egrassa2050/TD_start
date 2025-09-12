@@ -10,16 +10,13 @@ public class BuildManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
-            Destroy(gameObject);
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
     }
 
     public GameObject GetTowerPrefab(int index)
     {
-        if (index >= 0 && index < towerPrefabs.Count)
-            return towerPrefabs[index];
+        if (index >= 0 && index < towerPrefabs.Count) return towerPrefabs[index];
         return null;
     }
 }
