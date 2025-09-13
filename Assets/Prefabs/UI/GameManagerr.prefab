@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 7384606053903442962}
   - component: {fileID: 1154928073727996665}
-  - component: {fileID: 8847451058855076643}
   m_Layer: 0
   m_Name: GameManagerr
   m_TagString: Untagged
@@ -48,19 +47,3 @@ MonoBehaviour:
   winSceneName: Manu
   loseSceneName: Manu
   nextLevelSceneName: NextLevel
---- !u!114 &8847451058855076643
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2158520499184842289}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae119ea419520bd6f8d1cd438ca5daf0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  pauseKey: 27
-  pauseMenuPanel: {fileID: 0}
-  hideCursorOnPause: 0
-  pausedCursorState: 0

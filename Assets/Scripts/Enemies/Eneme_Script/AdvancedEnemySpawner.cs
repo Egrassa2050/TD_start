@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public class AdvancedEnemySpawner : MonoBehaviour
 {
@@ -12,15 +13,25 @@ public class AdvancedEnemySpawner : MonoBehaviour
     [Tooltip("Розмір області спавну (X, Y, Z)")]
     public Vector3 spawnArea = new Vector3(5f, 0f, 5f);
 
-    [Header("Контроль спавну")]
-    [Tooltip("Початковий спавн рейт (ворогів/сек)")]
-    public float initialSpawnRate = 1f;
-    [Tooltip("Максимальний спавн рейт (ворогів/сек)")]
-    public float maxSpawnRate = 5f;
-    [Tooltip("Інтервал збільшення складності (сек)")]
-    public float spawnRateIncreaseInterval = 30f;
-    [Tooltip("На скільки збільшувати спавн рейт при кожному інтервалі")]
-    public float spawnRateIncreaseAmount = 0.5f;
+    [Header("Контроль спавну (базові значення)")]
+    [Tooltip("Базовий спавн рейт (ворогів/сек) — множиться на значення з spawnRateCurve для поточної хвилі")]
+    public float baseSpawnRate = 1f;
+    [Tooltip("Максимальний спавн рейт (ворогів/сек) — остаточне обмеження")]
+    public float maxSpawnRate = 10f;
+
+    [Header("Хвилі")]
+    [Tooltip("Загальна кількість хвиль")]
+    public int totalWaves = 5;
+    [Tooltip("Базова кількість ворогів у хвилі — множиться на значення з enemyCountCurve для поточної хвилі")]
+    public int enemiesPerWave = 10;
+    [Tooltip("Мінімальна затримка між хвилями (сек)")]
+    public float minWaveDelay = 5f;
+    [Tooltip("Максимальна затримка між хвилями (сек)")]
+    public float maxWaveDelay = 10f;
+    [Tooltip("Анімаційна крива множника кількості ворогів по хвилах. X: 0..1 (перша->остання хвиля), Y: множник")]
+    public AnimationCurve enemyCountCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 2f);
+    [Tooltip("Анімаційна крива множника спавн-рейту по хвилах. X: 0..1 (перша->остання хвиля), Y: множник")]
+    public AnimationCurve spawnRateCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 2f);
 
     [Header("Бос")]
     [Tooltip("Інтервал між появами боса (сек)")]
@@ -30,7 +41,7 @@ public class AdvancedEnemySpawner : MonoBehaviour
 
     [Header("Обмеження")]
     [Tooltip("Максимальна кількість ворогів одночасно")]
-    public int maxEnemies = 20;
+    public int maxEnemies = 30;
 
     [Header("Gizmos")]
     [Tooltip("Показувати область спавну в сцені")]
@@ -38,49 +49,88 @@ public class AdvancedEnemySpawner : MonoBehaviour
     [Tooltip("Колір області спавну")]
     public Color spawnAreaColor = Color.red;
 
+    // runtime
     private float currentSpawnRate;
     private int currentEnemies = 0;
     private float nextSpawnTime = 0f;
-    private float difficultyTimer = 0f;
+    private int currentWave = 0;
+    private int enemiesSpawnedInWave = 0;
+    private int enemiesToSpawnThisWave = 0;
+    private bool isSpawningBoss = false;
     private float nextBossTime = 0f;
 
     void Start()
     {
-        currentSpawnRate = initialSpawnRate;
-        difficultyTimer = spawnRateIncreaseInterval;
+        currentWave = 1;
+        PrepareWave(currentWave);
         nextBossTime = Time.time + bossSpawnInterval;
+        Debug.Log($"Початок хвилі {currentWave} — заплановано спавн {enemiesToSpawnThisWave} ворогів");
     }
 
     void Update()
     {
-        difficultyTimer -= Time.deltaTime;
-        if (difficultyTimer <= 0f)
-        {
-            IncreaseDifficulty();
-            difficultyTimer = spawnRateIncreaseInterval;
-        }
+        if (currentWave > totalWaves) return;
 
-        if (Time.time >= nextBossTime)
+        if (Time.time >= nextBossTime && !isSpawningBoss)
         {
             TrySpawnBoss();
             nextBossTime = Time.time + bossSpawnInterval;
         }
 
-        if (currentEnemies < maxEnemies && Time.time >= nextSpawnTime)
+        if (currentEnemies < maxEnemies && Time.time >= nextSpawnTime && enemiesSpawnedInWave < enemiesToSpawnThisWave)
         {
             SpawnRandomEnemy();
+            enemiesSpawnedInWave++;
             nextSpawnTime = Time.time + 1f / currentSpawnRate;
+        }
+
+        CheckWaveCompletion();
+    }
+
+    void PrepareWave(int waveNumber)
+    {
+        // normalized X для кривих: 0 для першої хвилі, 1 для останньої
+        float normalized = (totalWaves <= 1) ? 0f : (waveNumber - 1) / (float)(totalWaves - 1);
+
+        // enemy count based on curve (плавно, не по прямій)
+        float enemyMultiplier = (enemyCountCurve != null) ? enemyCountCurve.Evaluate(normalized) : 1f;
+        enemiesToSpawnThisWave = Mathf.Max(1, Mathf.RoundToInt(enemiesPerWave * enemyMultiplier));
+
+        // spawn rate based on curve
+        float spawnMultiplier = (spawnRateCurve != null) ? spawnRateCurve.Evaluate(normalized) : 1f;
+        currentSpawnRate = Mathf.Clamp(baseSpawnRate * spawnMultiplier, 0.01f, maxSpawnRate);
+
+        // reset wave spawn timers/counters
+        enemiesSpawnedInWave = 0;
+        nextSpawnTime = Time.time; // стартувати зразу коли дозволить логіка
+        Debug.Log($"Підготовка хвилі {waveNumber}. Mножник ворогів: {enemyMultiplier:F2}, ворогів для спавну: {enemiesToSpawnThisWave}. Спавн-рейт: {currentSpawnRate:F2} в/сек.");
+    }
+
+    void CheckWaveCompletion()
+    {
+        // коли всі вороги хвилі заспавнені і поточних ворогів 0 — хвиля завершена
+        if (enemiesSpawnedInWave >= enemiesToSpawnThisWave && currentEnemies == 0)
+        {
+            if (currentWave < totalWaves)
+            {
+                StartCoroutine(StartNextWaveRoutine());
+            }
+            else
+            {
+                GameManager.Instance.OnGameWon();
+            }
         }
     }
 
-    void IncreaseDifficulty()
+    IEnumerator StartNextWaveRoutine()
     {
-        if (currentSpawnRate < maxSpawnRate)
-        {
-            currentSpawnRate += spawnRateIncreaseAmount;
-            currentSpawnRate = Mathf.Min(currentSpawnRate, maxSpawnRate);
-            Debug.Log($"Складність збільшена! Поточний спавн рейт: {currentSpawnRate} ворогів/секунду");
-        }
+        float delay = Random.Range(minWaveDelay, maxWaveDelay);
+        Debug.Log($"Хвиля {currentWave} завершена. Наступна хвиля {currentWave + 1} через {delay:F1} сек.");
+        yield return new WaitForSeconds(delay);
+
+        currentWave++;
+        PrepareWave(currentWave);
+        Debug.Log($"Початок хвилі {currentWave}!");
     }
 
     void SpawnRandomEnemy()
@@ -95,9 +145,8 @@ public class AdvancedEnemySpawner : MonoBehaviour
         );
 
         GameObject enemy = Instantiate(prefab, transform.position + randomPosition, Quaternion.identity);
-        AttachHealthAndSubscribe(enemy);
+        AttachDeathNotifier(enemy);
         currentEnemies++;
-        Debug.Log("Spawned enemy: " + enemy.name);
     }
 
     GameObject ChooseRandomEnemyPrefab()
@@ -114,6 +163,8 @@ public class AdvancedEnemySpawner : MonoBehaviour
         if (bossPrefab == null) return;
         if (!bossIgnoresMaxEnemies && currentEnemies >= maxEnemies) return;
 
+        isSpawningBoss = true;
+
         Vector3 randomPosition = new Vector3(
             Random.Range(-spawnArea.x / 2, spawnArea.x / 2),
             0f,
@@ -121,32 +172,38 @@ public class AdvancedEnemySpawner : MonoBehaviour
         );
 
         GameObject boss = Instantiate(bossPrefab, transform.position + randomPosition, Quaternion.identity);
-        AttachHealthAndSubscribe(boss);
+        AttachDeathNotifier(boss);
         currentEnemies++;
-        Debug.Log("Бос з'явився!");
+        isSpawningBoss = false;
     }
 
-    void AttachHealthAndSubscribe(GameObject obj)
+    void AttachDeathNotifier(GameObject obj)
     {
-        EnemyHealth eh = obj.GetComponent<EnemyHealth>();
-        if (eh == null) eh = obj.AddComponent<EnemyHealth>();
-        eh.OnDeath += HandleEnemyDeath;
+        EnemyDeathNotifier notifier = obj.GetComponent<EnemyDeathNotifier>();
+        if (notifier == null) notifier = obj.AddComponent<EnemyDeathNotifier>();
+        notifier.OnDeath += HandleEnemyDeath;
     }
 
-    void HandleEnemyDeath()
+    void HandleEnemyDeath(GameObject enemy)
     {
         currentEnemies = Mathf.Max(0, currentEnemies - 1);
-        Debug.Log("Ворог помер. Поточна кількість ворогів: " + currentEnemies);
+
+        EnemyDeathNotifier notifier = enemy.GetComponent<EnemyDeathNotifier>();
+        if (notifier != null)
+        {
+            notifier.OnDeath -= HandleEnemyDeath;
+        }
     }
 
-    public void SetSpawnRate(float newRate)
+    public void SetBaseSpawnRate(float newRate)
     {
-        currentSpawnRate = Mathf.Clamp(newRate, 0.1f, maxSpawnRate);
+        baseSpawnRate = Mathf.Max(0.01f, newRate);
+        currentSpawnRate = Mathf.Clamp(baseSpawnRate, 0.01f, maxSpawnRate);
     }
 
     public void SetMaxEnemies(int newMax)
     {
-        maxEnemies = newMax;
+        maxEnemies = Mathf.Max(1, newMax);
     }
 
     void OnDrawGizmosSelected()
@@ -156,25 +213,5 @@ public class AdvancedEnemySpawner : MonoBehaviour
             Gizmos.color = spawnAreaColor;
             Gizmos.DrawWireCube(transform.position, spawnArea);
         }
-    }
-}
-
-public class EnemyHealth : MonoBehaviour
-{
-    public System.Action OnDeath;
-    public int health = 100;
-
-    public void TakeDamage(int damage)
-    {
-        health -= damage;
-        Debug.Log(gameObject.name + " отримав " + damage + " шкоди. HP: " + health);
-        if (health <= 0) Die();
-    }
-
-    void Die()
-    {
-        Debug.Log(gameObject.name + " помер.");
-        OnDeath?.Invoke();
-        Destroy(gameObject);
     }
 }

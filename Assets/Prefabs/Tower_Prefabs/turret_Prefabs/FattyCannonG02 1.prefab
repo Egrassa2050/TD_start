@@ -245,7 +245,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cost: 20
-  repairCost: 20
+  range: 1
+  fireRate: 1
 --- !u!114 &1180011106245696856
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -260,8 +261,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   fireMode: 0
   firePoint: {fileID: 4402942947627619204}
-  fireRate: 100
-  range: 15
+  fireRate: 10
+  range: 200
   projectilePrefab: {fileID: 1627521441993660, guid: 12ea0a574b594264685afffd52fff036, type: 3}
   projectileConfig: {fileID: 11400000, guid: c95b69ad986961d4abac34831579e697, type: 2}
   multiTargetsCount: 3

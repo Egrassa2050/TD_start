@@ -100,6 +100,7 @@ GameObject:
   - component: {fileID: 1656997023555686464}
   - component: {fileID: 9150289542906204982}
   - component: {fileID: 2397167822367883663}
+  - component: {fileID: -4492664385651337038}
   m_Layer: 6
   m_Name: Dummy_Boss
   m_TagString: Enemy
@@ -247,6 +248,18 @@ NavMeshAgent:
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!114 &-4492664385651337038
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2816700231680660948}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28151a611520aba17a09fcff420761c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &1162216176502250747
 PrefabInstance:
   m_ObjectHideFlags: 0
